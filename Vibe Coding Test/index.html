@@ -1,0 +1,181 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ホテル検索アプリ</title>
+  <style>
+    html { height: 100%; }
+    body {
+      font-family: "Rounded Mplus 1c", "Hiragino Maru Gothic Pro", "Arial Rounded MT Bold", system-ui, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      background: url("background.png") no-repeat center center fixed;
+      background-size: cover;
+    }
+
+    header {
+      background: transparent;
+      border-bottom: none;
+      padding: 24px 0 12px;
+      text-align: center;
+    }
+    header img {
+      max-height: 100px;
+      width: auto;
+    }
+
+    .container { padding: 24px; max-width: 1100px; margin: auto; }
+    .hidden { display: none; }
+
+    .search-box {
+      background: rgba(255,253,245,0.75);
+      backdrop-filter: blur(6px);
+      padding: 20px;
+      border-radius: 28px;
+      box-shadow: 0 8px 0 rgba(0,0,0,0.15);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .search-row { display: contents; }
+    .search-box label { font-size: 12px; color: #6b5f3f; }
+    .search-box input, .search-box select {
+      width: 100%;
+      padding: 10px;
+      border-radius: 14px;
+      border: 2px solid #d6cfa8;
+    }
+    .search-box button {
+      grid-column: 1 / -1;
+      padding: 14px;
+      border-radius: 999px;
+      border: none;
+      background: #7fc8a9;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #5aa88a;
+    }
+
+    .results {
+      margin-top: 28px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      position: relative;
+      background: rgba(255,253,245,0.8);
+      backdrop-filter: blur(8px);
+      border-radius: 32px;
+      padding: 20px;
+      box-shadow: 0 8px 0 rgba(0,0,0,0.18);
+      cursor: pointer;
+    }
+    .card::after {
+      content: "";
+      position: absolute;
+      bottom: -18px;
+      left: 40px;
+      width: 0;
+      height: 0;
+      border: 18px solid transparent;
+      border-top-color: rgba(255,253,245,0.8);
+    }
+
+    .card h3 { margin: 0 0 6px; font-size: 17px; color: #3a6b5b; }
+    .price { font-size: 18px; font-weight: bold; color: #e07a5f; margin: 8px 0; }
+    .tag { display: inline-block; background: #cfeee3; color: #3a6b5b; padding: 4px 10px; border-radius: 999px; font-size: 11px; }
+    .muted { color: #6b6b6b; font-size: 12px; }
+    .back { margin-bottom: 16px; color: #3a6b5b; cursor: pointer; font-size: 14px; }
+
+    .reserve {
+      margin-top: 18px;
+      padding: 14px;
+      width: 100%;
+      background: #f2b705;
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      font-size: 16px;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #d49e04;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="title.png" alt="アプリタイトル" />
+  </header>
+
+  <div class="container">
+    <!-- 検索画面 -->
+    <section id="page-search">
+      <div class="search-box">
+        <div class="search-row">
+          <div><label>ホテル名</label><input type="text" id="name" /></div>
+          <div><label>エリア</label><input type="text" id="area" placeholder="例：関東" /></div>
+          <div><label>都道府県</label><select id="pref"><option value="">すべて</option><option value="東京都">東京都</option><option value="兵庫県">兵庫県</option><option value="京都府">京都府</option></select></div>
+        </div>
+        <div class="search-row">
+          <div><label>チェックイン日</label><input type="date" id="checkin" /></div>
+          <div><label>チェックアウト日</label><input type="date" id="checkout" /></div>
+          <div><label>宿泊人数</label><input type="number" id="guests" min="1" value="1" /></div>
+        </div>
+        <button onclick="goResult()">検索</button>
+      </div>
+    </section>
+
+    <!-- 検索結果画面 -->
+    <section id="page-result" class="hidden">
+      <div class="back" onclick="goSearch()">← 検索条件に戻る</div>
+      <div id="results" class="results"></div>
+    </section>
+
+    <!-- 詳細画面 -->
+    <section id="page-detail" class="hidden">
+      <div class="back" onclick="goResult()">← 検索結果に戻る</div>
+      <div id="detail"></div>
+    </section>
+  </div>
+
+  <script>
+    const hotels = [
+      {id:1,name:"東京シティホテル",area:"関東",pref:"東京都",price:12000,type:"ビジネスホテル",appeal:"東京の中心部に位置し、主要駅から徒歩圏内。ビジネスにも観光にも最適な快適空間を提供します。全室Wi-Fi完備で出張利用にも安心。"},
+      {id:2,name:"淡路島リゾート",area:"近畿",pref:"兵庫県",price:28000,type:"リゾートホテル",appeal:"海と自然に囲まれた開放的なリゾートホテル。非日常を味わえる贅沢な客室と地元食材を活かした料理で、特別な滞在をお楽しみください。"},
+      {id:3,name:"京都和風旅館",area:"近畿",pref:"京都府",price:22000,type:"旅館",appeal:"京都の情緒を感じる落ち着いた和風旅館。伝統的なおもてなしと静かな空間で、心安らぐひとときをお過ごしいただけます。"}
+    ];
+
+    let currentList = [];
+
+    function show(page){document.querySelectorAll('section').forEach(s=>s.classList.add('hidden'));document.getElementById(page).classList.remove('hidden');}
+    function goSearch(){show('page-search');}
+    function goResult(){
+      const name=document.getElementById('name').value;
+      const area=document.getElementById('area').value;
+      const pref=document.getElementById('pref').value;
+      currentList=hotels.filter(h=>(!name||h.name.includes(name))&&(!area||h.area.includes(area))&&(!pref||h.pref===pref));
+      renderResults();
+      show('page-result');
+    }
+    function renderResults(){
+      const r=document.getElementById('results');r.innerHTML='';
+      currentList.forEach(h=>{
+        const div=document.createElement('div');
+        div.className='card';
+        div.innerHTML=`<h3>${h.name}</h3><div class="price">¥${h.price.toLocaleString()} / 泊</div><div class="muted">${h.pref}</div><div style="margin-top:8px;"><span class="tag">${h.type}</span></div>`;
+        div.onclick=()=>showDetail(h.id);
+        r.appendChild(div);
+      });
+    }
+    function showDetail(id){
+      const h=hotels.find(x=>x.id===id);
+      document.getElementById('detail').innerHTML=`<div class="card"><h3>${h.name}</h3><div class="price">¥${h.price.toLocaleString()} / 泊</div><p class="muted">${h.pref}</p><span class="tag">${h.type}</span><p style="margin-top:12px;">${h.appeal}</p><button class="reserve" onclick="alert('予約処理へ進む想定です')">予約する</button></div>`;
+      show('page-detail');
+    }
+    show('page-search');
+  </script>
+</body>
+</html>
